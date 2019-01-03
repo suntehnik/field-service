@@ -43,17 +43,23 @@ repositories {
 
 
 dependencies {
+	implementation files('../tic-tac-toe-protobuf-spec/build/libs/protobuf-spec.jar')
+
 	implementation('org.springframework.boot:spring-boot-starter-actuator')
-	implementation('org.springframework.boot:spring-boot-starter-data-jpa')
 	implementation('org.springframework.boot:spring-boot-starter-web')
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springframework.boot:spring-boot-starter-amqp")
+	implementation("com.h2database:h2")
+
+	// FIXME: replace with better DB
+	testImplementation("com.h2database:h2")
+
 	implementation('com.fasterxml.jackson.module:jackson-module-kotlin')
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("org.springframework.boot:spring-boot-starter-amqp")
+	implementation("io.jmnarloch:rxjava-spring-boot-starter:2.0.0")
+	implementation 'com.google.protobuf:protobuf-java:3.6.1'
+	implementation 'com.google.protobuf:protobuf-java-util:3.6.1'
 
-	runtimeOnly('org.springframework.boot:spring-boot-devtools')
-	runtimeOnly('org.postgresql:postgresql')
-
-	testImplementation("com.h2database:h2")
 	testImplementation('org.springframework.boot:spring-boot-starter-test')
 }
