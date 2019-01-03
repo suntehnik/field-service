@@ -1,7 +1,9 @@
 package com.tictactoe.fieldservice.handler
 
 import com.google.protobuf.util.JsonFormat
+import com.tictactoe.fieldservice.domain.CellKind
 import com.tictactoe.fieldservice.handler.CommandQueueProvider.Companion.INBOUND_QUEUE_NAME
+import com.tictactoe.fieldservice.usecase.WriteToRepository
 import com.tictactoe.proto.TicTacToeProto
 import io.reactivex.subjects.SingleSubject
 import org.springframework.amqp.core.Queue
@@ -11,6 +13,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.util.logging.Level
@@ -23,18 +26,42 @@ class RequestHandler {
     @Autowired
     private lateinit var sender: Sender
 
+    @Autowired
+    private lateinit var writeToRepository: WriteToRepository
+
     fun handleCommand(cmdNewCell: TicTacToeProto.cmdNewCell) {
-        val doc = TicTacToeProto.docFieldCell.newBuilder()
-                .setX(cmdNewCell.x)
-                .setY(cmdNewCell.y)
-                .setKind(cmdNewCell.kind)
-                .build()
-        val respNewCell: TicTacToeProto.respNewCell = TicTacToeProto.respNewCell.newBuilder()
+        val respNewCellBuilder = TicTacToeProto.respNewCell.newBuilder()
                 .setClientRequestId(cmdNewCell.clientRequestId)
-                .addCells(doc)
-                .build()
-        sender.send(respNewCell.toByteArray())
+        try {
+            val cellStore = writeToRepository.writeToRepository(cmdNewCell.kind, cmdNewCell.x, cmdNewCell.y)
+            Logger.getLogger("RequestHandler").log(Level.INFO, cellStore.toString())
+
+            val doc = TicTacToeProto.docFieldCell.newBuilder()
+                    .setX(cellStore.cell.x)
+                    .setY(cellStore.cell.y)
+                    .setKind(cellStore.cell.kind.toProtoBuf())
+                    .build()
+            respNewCellBuilder.setStatus(TicTacToeProto.Status.success)
+                    .addCells(doc)
+        } catch (e: DataIntegrityViolationException) {
+            respNewCellBuilder.status = TicTacToeProto.Status.fail
+            respNewCellBuilder.message = "Probably cell already exists"
+        } catch (e: Exception) {
+            respNewCellBuilder.status = TicTacToeProto.Status.fail
+            respNewCellBuilder.message = e.message
+        } finally {
+            sender.send(respNewCellBuilder.build().toByteArray())
+
+        }
     }
+}
+
+fun CellKind.toProtoBuf(): TicTacToeProto.Kind {
+    when (this.kind) {
+        0 -> return TicTacToeProto.Kind.O
+        1 -> return TicTacToeProto.Kind.X
+    }
+    throw IllegalArgumentException("Unknown cell kind")
 }
 
 @Component

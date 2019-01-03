@@ -1,34 +1,28 @@
 package com.tictactoe.fieldservice.domain
 
 import com.tictactoe.proto.TicTacToeProto
-import javax.persistence.Embedded
-import javax.persistence.Entity
-import javax.persistence.Id
-
-class TicTacToeResponse(val id: String, val code: Int, val error: TicTacToeError?, val fieldConfiguration: FieldConfiguration?)
+import org.hibernate.annotations.GenericGenerator
+import javax.persistence.*
 
 @Entity
-class CellStore(@Id val id: String, @Embedded val cell: Cell)
+@Table(uniqueConstraints =
+[UniqueConstraint(columnNames = ["x", "y"])]
+)
 
+class CellStore(@Id
+                @GeneratedValue(generator = "system-uuid")
+                @GenericGenerator(name = "system-uuid", strategy = "uuid")
+                val id: String,
+                @Embedded
+                val cell: Cell)
+
+@Embeddable
 class Cell(val kind: CellKind, val x: Long, val y: Long)
-
-class FieldConfiguration {
-    val cells: MutableList<Cell> = mutableListOf()
-}
-
-class TicTacToeError(val message: String, val code: Int)
 
 enum class CellKind(val kind: Int) {
     X(0), O(1);
 
     companion object {
-        fun valueOf(kind: Int): CellKind {
-            return when (kind) {
-                0 -> O
-                1 -> X
-                else -> throw IllegalArgumentException("Unsupported cell kind")
-            }
-        }
 
         fun valueOf(value: TicTacToeProto.Kind): CellKind {
             return when (value) {
